@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Auth Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .container { max-width: 500px; margin: 0 auto; }
+        .form-group { margin: 15px 0; }
+        input, button { width: 100%; padding: 10px; margin: 5px 0; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .message { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .toggle { text-align: center; margin: 15px 0; }
+        .toggle a { color: #007bff; cursor: pointer; text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 id="formTitle">Sign In</h2>
+        <div id="message"></div>
+        
+        <form id="authForm">
+            <div id="nameGroup" class="form-group" style="display: none;">
+                <label>Name:</label>
+                <input type="text" id="name" placeholder="Enter your name">
+            </div>
+            <div class="form-group">
+                <label>Email:</label>
+                <input type="email" id="email" placeholder="Enter your email" required>
+            </div>
+            <div class="form-group">
+                <label>Password:</label>
+                <input type="password" id="password" placeholder="Enter your password" required>
+            </div>
+            <div id="confirmGroup" class="form-group" style="display: none;">
+                <label>Confirm Password:</label>
+                <input type="password" id="confirmPassword" placeholder="Confirm your password">
+            </div>
+            <button type="submit" id="submitBtn">Sign In</button>
+        </form>
+        
+        <div class="toggle">
+            <a id="toggleLink" onclick="toggleMode()">Need an account? Sign up</a>
+        </div>
+    </div>
+
+    <script>
+        let isSignup = false;
+
+        function toggleMode() {
+            isSignup = !isSignup;
+            const formTitle = document.getElementById('formTitle');
+            const nameGroup = document.getElementById('nameGroup');
+            const confirmGroup = document.getElementById('confirmGroup');
+            const submitBtn = document.getElementById('submitBtn');
+            const toggleLink = document.getElementById('toggleLink');
+            
+            if (isSignup) {
+                formTitle.textContent = 'Sign Up';
+                nameGroup.style.display = 'block';
+                confirmGroup.style.display = 'block';
+                submitBtn.textContent = 'Sign Up';
+                toggleLink.textContent = 'Already have an account? Sign in';
+            } else {
+                formTitle.textContent = 'Sign In';
+                nameGroup.style.display = 'none';
+                confirmGroup.style.display = 'none';
+                submitBtn.textContent = 'Sign In';
+                toggleLink.textContent = 'Need an account? Sign up';
+            }
+        }
+
+        function showMessage(message, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = `<div class="message ${type}">${message}</div>`;
+            setTimeout(() => {
+                messageDiv.innerHTML = '';
+            }, 5000);
+        }
+
+        async function handleSubmit(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const name = isSignup ? document.getElementById('name').value : null;
+            const confirmPassword = isSignup ? document.getElementById('confirmPassword').value : null;
+            
+            if (isSignup && password !== confirmPassword) {
+                showMessage('Passwords do not match', 'error');
+                return;
+            }
+            
+            const url = isSignup ? 'http://localhost:5000/api/auth/signup' : 'http://localhost:5000/api/auth/login';
+            const body = isSignup ? { name, email, password } : { email, password };
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(body)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    showMessage(`${isSignup ? 'Account created' : 'Login'} successful!`, 'success');
+                    
+                    if (isSignup) {
+                        // Auto-login after signup
+                        setTimeout(() => {
+                            window.location.href = 'simple-auth-app.html';
+                        }, 2000);
+                    } else {
+                        // Redirect to main app
+                        setTimeout(() => {
+                            window.location.href = 'simple-auth-app.html';
+                        }, 1500);
+                    }
+                } else {
+                    showMessage(data.message || 'Authentication failed', 'error');
+                }
+            } catch (error) {
+                showMessage('Network error. Please try again.', 'error');
+                console.error('Auth error:', error);
+            }
+        }
+
+        document.getElementById('authForm').addEventListener('submit', handleSubmit);
+    </script>
+</body>
+</html>

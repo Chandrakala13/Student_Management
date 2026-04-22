@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Signup</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div class="min-h-screen bg-gray-100 p-8">
+        <div class="max-w-2xl mx-auto">
+            <h1 class="text-3xl font-bold mb-8">Debug Signup</h1>
+            
+            <div class="bg-white rounded-lg shadow p-6 mb-6">
+                <h2 class="text-xl font-semibold mb-4">Test API Connection</h2>
+                <button onclick="testConnection()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                    Test Backend Connection
+                </button>
+                <div id="connectionResult" class="mt-4"></div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6 mb-6">
+                <h2 class="text-xl font-semibold mb-4">Test Signup</h2>
+                <form onsubmit="testSignup(event)">
+                    <div class="space-y-4">
+                        <input type="text" id="name" placeholder="Name" class="w-full px-4 py-2 border rounded" required>
+                        <input type="email" id="email" placeholder="Email" class="w-full px-4 py-2 border rounded" required>
+                        <input type="password" id="password" placeholder="Password" class="w-full px-4 py-2 border rounded" required>
+                        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                            Test Signup
+                        </button>
+                    </div>
+                </form>
+                <div id="signupResult" class="mt-4"></div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold mb-4">Check Existing Users</h2>
+                <button onclick="checkUsers()" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+                    Check Users in Database
+                </button>
+                <div id="usersResult" class="mt-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function testConnection() {
+            const resultDiv = document.getElementById('connectionResult');
+            resultDiv.innerHTML = '<p class="text-gray-600">Testing connection...</p>';
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/signup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: 'Test User',
+                        email: 'test@example.com',
+                        password: 'password123'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <div class="p-4 rounded ${response.ok ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                        <p><strong>Status:</strong> ${response.status} ${response.statusText}</p>
+                        <p><strong>Response:</strong></p>
+                        <pre class="mt-2 text-sm bg-gray-100 p-2 rounded">${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="p-4 bg-red-100 text-red-800 rounded">
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <p class="mt-2">Make sure the backend server is running on port 5000</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function testSignup(event) {
+            event.preventDefault();
+            const resultDiv = document.getElementById('signupResult');
+            resultDiv.innerHTML = '<p class="text-gray-600">Testing signup...</p>';
+            
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/signup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name, email, password })
+                });
+                
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <div class="p-4 rounded ${response.ok ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                        <p><strong>Status:</strong> ${response.status} ${response.statusText}</p>
+                        <p><strong>Response:</strong></p>
+                        <pre class="mt-2 text-sm bg-gray-100 p-2 rounded">${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+                
+                if (response.ok) {
+                    // Clear form on success
+                    document.getElementById('name').value = '';
+                    document.getElementById('email').value = '';
+                    document.getElementById('password').value = '';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="p-4 bg-red-100 text-red-800 rounded">
+                        <p><strong>Error:</strong> ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function checkUsers() {
+            const resultDiv = document.getElementById('usersResult');
+            resultDiv.innerHTML = '<p class="text-gray-600">Checking users...</p>';
+            
+            try {
+                // This will likely fail due to authentication, but let's see what happens
+                const response = await fetch('http://localhost:5000/api/students', {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <div class="p-4 rounded ${response.ok ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
+                        <p><strong>Status:</strong> ${response.status} ${response.statusText}</p>
+                        <p><strong>Response:</strong></p>
+                        <pre class="mt-2 text-sm bg-gray-100 p-2 rounded">${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="p-4 bg-red-100 text-red-800 rounded">
+                        <p><strong>Error:</strong> ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Test connection on page load
+        window.onload = function() {
+            testConnection();
+        };
+    </script>
+</body>
+</html>

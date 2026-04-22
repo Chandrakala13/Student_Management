@@ -2,6 +2,7 @@ const express = require("express");
 const app = express();
 
 const studentRoutes = require("./routes/student.routes");
+const authRoutes = require("./routes/auth.routes");
 const logger = require("./middleware/logger.middleware");
 const errorHandler = require("./middleware/error.middleware");
 const notFound = require("./middleware/notFound.middleware");
@@ -20,6 +21,8 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(logger);
 
+// Routes
+app.use("/api/auth", authRoutes);
 app.use("/api/students", studentRoutes);
 
 app.use(notFound);

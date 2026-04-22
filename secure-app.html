@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Student Management System</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Authentication Service
+        class AuthService {
+            getToken() {
+                return localStorage.getItem('token');
+            }
+
+            getUser() {
+                const userStr = localStorage.getItem('user');
+                return userStr ? JSON.parse(userStr) : null;
+            }
+
+            setAuthData(token, user) {
+                localStorage.setItem('token', token);
+                localStorage.setItem('user', JSON.stringify(user));
+            }
+
+            clearAuthData() {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+            }
+
+            isAuthenticated() {
+                return !!this.getToken();
+            }
+
+            getAuthHeader() {
+                const token = this.getToken();
+                return token ? { Authorization: `Bearer ${token}` } : {};
+            }
+
+            async login(email, password) {
+                try {
+                    const response = await fetch('http://localhost:5000/api/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password })
+                    });
+
+                    const data = await response.json();
+                    if (response.ok && data.success) {
+                        this.setAuthData(data.data.token, data.data.user);
+                        return { success: true, user: data.data.user };
+                    } else {
+                        return { success: false, message: data.message || 'Login failed' };
+                    }
+                } catch (error) {
+                    return { success: false, message: 'Network error. Please try again.' };
+                }
+            }
+
+            async signup(name, email, password) {
+                try {
+                    const response = await fetch('http://localhost:5000/api/auth/signup', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, email, password })
+                    });
+
+                    const data = await response.json();
+                    if (response.ok && data.success) {
+                        this.setAuthData(data.data.token, data.data.user);
+                        return { success: true, user: data.data.user };
+                    } else {
+                        return { success: false, message: data.message || 'Registration failed' };
+                    }
+                } catch (error) {
+                    return { success: false, message: 'Network error. Please try again.' };
+                }
+            }
+
+            logout() {
+                this.clearAuthData();
+            }
+        }
+
+        const authService = new AuthService();
+
+        // Login Component
+        function Login({ onLogin }) {
+            const [formData, setFormData] = useState({ email: '', password: '' });
+            const [loading, setLoading] = useState(false);
+            const [error, setError] = useState('');
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                if (!formData.email || !formData.password) {
+                    setError('Please fill all fields');
+                    return;
+                }
+
+                setLoading(true);
+                setError('');
+
+                const result = await authService.login(formData.email, formData.password);
+                
+                if (result.success) {
+                    onLogin(result.user);
+                } else {
+                    setError(result.message);
+                }
+                setLoading(false);
+            };
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+                    <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+                        <h2 className="text-2xl font-bold text-center mb-6">Sign In</h2>
+                        {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>}
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <input
+                                type="email"
+                                placeholder="Email"
+                                value={formData.email}
+                                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
+                            />
+                            <input
+                                type="password"
+                                placeholder="Password"
+                                value={formData.password}
+                                onChange={(e) => setFormData({...formData, password: e.target.value})}
+                                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
+                            />
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                            >
+                                {loading ? 'Signing in...' : 'Sign In'}
+                            </button>
+                        </form>
+                        <p className="text-center mt-4 text-gray-600">
+                            Don't have an account?{' '}
+                            <button onClick={() => window.location.reload()} className="text-blue-600 hover:underline">
+                                Sign up
+                            </button>
+                        </p>
+                    </div>
+                </div>
+            );
+        }
+
+        // Signup Component
+        function Signup({ onSignup }) {
+            const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '' });
+            const [loading, setLoading] = useState(false);
+            const [error, setError] = useState('');
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                
+                if (!formData.name || !formData.email || !formData.password) {
+                    setError('Please fill all fields');
+                    return;
+                }
+                
+                if (formData.password !== formData.confirmPassword) {
+                    setError('Passwords do not match');
+                    return;
+                }
+
+                if (formData.password.length < 6) {
+                    setError('Password must be at least 6 characters');
+                    return;
+                }
+
+                setLoading(true);
+                setError('');
+
+                const result = await authService.signup(formData.name, formData.email, formData.password);
+                
+                if (result.success) {
+                    onSignup(result.user);
+                } else {
+                    setError(result.message);
+                }
+                setLoading(false);
+            };
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+                    <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+                        <h2 className="text-2xl font-bold text-center mb-6">Create Account</h2>
+                        {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>}
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <input
+                                type="text"
+                                placeholder="Full Name"
+                                value={formData.name}
+                                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
+                            />
+                            <input
+                                type="email"
+                                placeholder="Email"
+                                value={formData.email}
+                                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
+                            />
+                            <input
+                                type="password"
+                                placeholder="Password"
+                                value={formData.password}
+                                onChange={(e) => setFormData({...formData, password: e.target.value})}
+                                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
+                            />
+                            <input
+                                type="password"
+                                placeholder="Confirm Password"
+                                value={formData.confirmPassword}
+                                onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
+                                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
+                            />
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                            >
+                                {loading ? 'Creating account...' : 'Sign Up'}
+                            </button>
+                        </form>
+                        <p className="text-center mt-4 text-gray-600">
+                            Already have an account?{' '}
+                            <button onClick={() => window.location.reload()} className="text-blue-600 hover:underline">
+                                Sign in
+                            </button>
+                        </p>
+                    </div>
+                </div>
+            );
+        }
+
+        // Dashboard Component
+        function Dashboard({ user, onLogout }) {
+            const [students, setStudents] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState('');
+            const [formData, setFormData] = useState({ name: '', age: '', course: '' });
+
+            useEffect(() => {
+                loadStudents();
+            }, []);
+
+            const loadStudents = async () => {
+                try {
+                    setLoading(true);
+                    const response = await fetch('http://localhost:5000/api/students', {
+                        headers: authService.getAuthHeader()
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        setStudents(data.data || []);
+                    } else {
+                        setError('Failed to load students');
+                    }
+                } catch (err) {
+                    setError('Network error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleAddStudent = async (e) => {
+                e.preventDefault();
+                if (!formData.name || !formData.age || !formData.course) {
+                    setError('Please fill all fields');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('http://localhost:5000/api/students', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...authService.getAuthHeader()
+                        },
+                        body: JSON.stringify({
+                            name: formData.name,
+                            age: parseInt(formData.age),
+                            course: formData.course
+                        })
+                    });
+
+                    if (response.ok) {
+                        setFormData({ name: '', age: '', course: '' });
+                        loadStudents();
+                    } else {
+                        setError('Failed to add student');
+                    }
+                } catch (err) {
+                    setError('Network error');
+                }
+            };
+
+            const handleDeleteStudent = async (id) => {
+                if (confirm('Are you sure you want to delete this student?')) {
+                    try {
+                        const response = await fetch(`http://localhost:5000/api/students/${id}`, {
+                            method: 'DELETE',
+                            headers: authService.getAuthHeader()
+                        });
+
+                        if (response.ok) {
+                            loadStudents();
+                        } else {
+                            setError('Failed to delete student');
+                        }
+                    } catch (err) {
+                        setError('Network error');
+                    }
+                }
+            };
+
+            return (
+                <div className="min-h-screen bg-gray-100">
+                    <nav className="bg-white shadow-lg">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="flex justify-between h-16">
+                                <div className="flex items-center">
+                                    <h1 className="text-xl font-bold text-blue-600">Student Management</h1>
+                                </div>
+                                <div className="flex items-center space-x-4">
+                                    <span className="text-gray-700">Welcome, {user.name}</span>
+                                    <button
+                                        onClick={onLogout}
+                                        className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                                    >
+                                        Logout
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </nav>
+
+                    <div className="container mx-auto p-8">
+                        <h2 className="text-3xl font-bold mb-8">Dashboard</h2>
+                        
+                        {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>}
+
+                        {/* Add Student Form */}
+                        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+                            <h3 className="text-xl font-semibold mb-4">Add New Student</h3>
+                            <form onSubmit={handleAddStudent} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <input
+                                    type="text"
+                                    placeholder="Name"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    required
+                                />
+                                <input
+                                    type="number"
+                                    placeholder="Age"
+                                    value={formData.age}
+                                    onChange={(e) => setFormData({...formData, age: e.target.value})}
+                                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    required
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Course"
+                                    value={formData.course}
+                                    onChange={(e) => setFormData({...formData, course: e.target.value})}
+                                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    required
+                                />
+                                <button
+                                    type="submit"
+                                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+                                >
+                                    Add Student
+                                </button>
+                            </form>
+                        </div>
+
+                        {/* Students List */}
+                        <div className="bg-white rounded-lg shadow-md p-6">
+                            <h3 className="text-xl font-semibold mb-4">Students ({students.length})</h3>
+                            
+                            {loading ? (
+                                <div className="text-center py-8">
+                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                                    <p className="mt-4 text-gray-600">Loading students...</p>
+                                </div>
+                            ) : students.length === 0 ? (
+                                <div className="text-center py-8">
+                                    <p className="text-gray-500">No students yet. Add your first student!</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {students.map(student => (
+                                        <div key={student._id} className="bg-gray-50 rounded-lg p-6">
+                                            <div className="flex justify-between items-start mb-4">
+                                                <div>
+                                                    <h4 className="font-semibold text-lg">{student.name}</h4>
+                                                    <p className="text-gray-600">Age: {student.age}</p>
+                                                    <p className="text-gray-600">Course: {student.course}</p>
+                                                </div>
+                                                <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
+                                                    {student.name.charAt(0).toUpperCase()}
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => handleDeleteStudent(student._id)}
+                                                className="w-full bg-red-600 text-white py-2 rounded hover:bg-red-700"
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Main App Component
+        function App() {
+            const [user, setUser] = useState(null);
+            const [showSignup, setShowSignup] = useState(false);
+            const [loading, setLoading] = useState(true);
+
+            useEffect(() => {
+                // Check if user is already authenticated
+                if (authService.isAuthenticated()) {
+                    setUser(authService.getUser());
+                }
+                setLoading(false);
+            }, []);
+
+            const handleLogin = (userData) => {
+                setUser(userData);
+            };
+
+            const handleSignup = (userData) => {
+                setUser(userData);
+            };
+
+            const handleLogout = () => {
+                authService.logout();
+                setUser(null);
+            };
+
+            if (loading) {
+                return (
+                    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                    </div>
+                );
+            }
+
+            if (user) {
+                return <Dashboard user={user} onLogout={handleLogout} />;
+            }
+
+            if (showSignup) {
+                return <Signup onSignup={handleSignup} />;
+            }
+
+            return <Login onLogin={handleLogin} />;
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>

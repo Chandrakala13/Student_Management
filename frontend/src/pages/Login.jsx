@@ -25,8 +25,8 @@ const Login = () => {
 
     try {
       const response = await authService.login(formData)
-      localStorage.setItem('token', response.token)
-      localStorage.setItem('user', JSON.stringify(response.user))
+      localStorage.setItem('token', response.data.token)
+      localStorage.setItem('user', JSON.stringify(response.data.user))
       navigate('/')
     } catch (err) {
       setError(err.message)
